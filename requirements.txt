@@ -4,3 +4,4 @@ statsmodels
 pandas
 numpy
 plotly
+xlsxwriter
