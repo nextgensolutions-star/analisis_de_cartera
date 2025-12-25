@@ -9,63 +9,60 @@ from datetime import datetime, timedelta
 import io
 import google.generativeai as genai
 
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS
+# 1. CONFIGURACIÓN Y ESTILOS
 st.set_page_config(page_title="Terminal Económica Pro", layout="wide")
 
-# CSS para que el botón del chatbot se vea mejor en la barra lateral
+# CSS para el botón flotante y diseño de tarjetas
 st.markdown("""
     <style>
     .stPopover { width: 100%; }
-    .stMetric { background-color: #f0f2f6; padding: 10px; border-radius: 10px; }
+    .stMetric { background-color: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #e9ecef; }
+    [data-testid="stSidebarNav"] { padding-top: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. CONFIGURACIÓN DE INTELIGENCIA ARTIFICIAL ---
-# Instrucciones para que actúe como profesor de tu Maestría
-instrucciones_ia = """
-Eres un Asistente Experto de la Maestría en Economía Aplicada. 
-Tu misión es interpretar resultados econométricos (Beta, p-values, histogramas) 
-con rigor académico pero de forma clara. Cita a autores como Wooldridge o Gujarati 
-si el usuario pregunta por la teoría detrás de los modelos.
-"""
+# --- 2. INICIALIZACIÓN DE IA (Detección automática de modelo) ---
+def setup_ai():
+    if "GEMINI_API_KEY" not in st.secrets:
+        return None, "⚠️ Clave no configurada en Secrets."
+    
+    try:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        # Buscamos qué modelos tenés habilitados para evitar el error 404
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # Prioridad de modelos disponibles en diciembre 2025
+        target_model = ""
+        for m_name in ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']:
+            if m_name in available_models:
+                target_model = m_name
+                break
+        
+        if not target_model and available_models:
+            target_model = available_models[0]
+            
+        if target_model:
+            model = genai.GenerativeModel(
+                model_name=target_model,
+                system_instruction="Eres un experto en econometría aplicada. Explica resultados de OLS y ADF de forma académica."
+            )
+            return model, f"✅ IA Activa: {target_model.split('/')[-1]}"
+        return None, "❌ No se encontraron modelos disponibles."
+    except Exception as e:
+        return None, f"⚠️ Error IA: {str(e)}"
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-model_ia = None
-if "GEMINI_API_KEY" in st.secrets:
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model_ia = genai.GenerativeModel(
-            model_name='gemini-1.5-flash', 
-            system_instruction=instrucciones_ia
-        )
-    except Exception as e:
-        st.sidebar.error(f"Error IA: {e}")
-else:
-    st.sidebar.warning("⚠️ Chatbot: Falta la API Key en los secretos.")
+model_ia, status_ia = setup_ai()
 
-# --- 3. FUNCIONES DE APOYO (EXCEL Y DATOS) ---
-def to_excel(df):
-    output = io.BytesIO()
-    writer = pd.ExcelWriter(output, engine='xlsxwriter')
-    df.to_excel(writer, index=True, sheet_name='Datos')
-    writer.close()
-    return output.getvalue()
-
-@st.cache_data
-def obtener_datos(ticker, start, end, freq_alias):
-    # Descargamos activo y SPY para comparativas econométricas
-    df = yf.download([ticker, "SPY"], start=start, end=end)['Close']
-    df_res = df.resample(freq_alias).last().dropna()
-    return df_res
-
-# --- 4. BARRA LATERAL: FILTROS Y PARÁMETROS ---
-st.sidebar.header("⚙️ Configuración")
+# --- 3. BARRA LATERAL: CONFIGURACIÓN ---
+st.sidebar.header("📊 Parámetros de Análisis")
+st.sidebar.info(status_ia)
 
 tipo_activo = st.sidebar.selectbox("Tipo de Activo", ["Acciones", "Criptos", "Forex", "Índices"])
 ticker_map = {"Acciones": "AAPL", "Criptos": "BTC-USD", "Forex": "EURUSD=X", "Índices": "^GSPC"}
-ticker_input = st.sidebar.text_input("Ticker", ticker_map[tipo_activo])
+ticker_user = st.sidebar.text_input("Ticker", ticker_map[tipo_activo])
 
 col_f1, col_f2 = st.sidebar.columns(2)
 with col_f1:
@@ -73,106 +70,105 @@ with col_f1:
 with col_f2:
     f_fin = st.date_input("Hasta", datetime.now())
 
-frecuencia_label = st.sidebar.selectbox("Frecuencia Temporal", ["Diario", "Semanal", "Mensual", "Trimestral", "Anual"])
-mapa_resample = {"Diario": "D", "Semanal": "W", "Mensual": "ME", "Trimestral": "QE", "Anual": "YE"}
+f_label = st.sidebar.selectbox("Frecuencia", ["Diario", "Semanal", "Mensual", "Trimestral", "Anual"])
+m_resample = {"Diario": "D", "Semanal": "W", "Mensual": "ME", "Trimestral": "QE", "Anual": "YE"}
 
-opcion_menu = st.sidebar.radio("Sección del Dashboard", ["📈 Análisis de Mercado", "📊 Econometría Aplicada", "📑 Datos Fundamentales"])
+seccion = st.sidebar.radio("Navegación", ["📈 Análisis de Mercado", "📊 Econometría", "📑 Balances Contables"])
 
-# --- 5. LÓGICA PRINCIPAL ---
+# --- 4. CARGA DE DATOS ---
+@st.cache_data
+def get_data(ticker, start, end, freq):
+    df = yf.download([ticker, "SPY"], start=start, end=end)['Close']
+    return df.resample(m_resample[freq]).last().dropna()
+
+# --- 5. LÓGICA DE CÁLCULO Y VISUALIZACIÓN ---
 try:
-    data = obtener_datos(ticker_input, f_inicio, f_fin, mapa_resample[frecuencia_label])
-    asset_series = data[ticker_input]
-    spy_series = data["SPY"]
+    data = get_data(ticker_user, f_inicio, f_fin, f_label)
+    asset_p = data[ticker_user]
+    spy_p = data["SPY"]
     
-    # Cálculos de Retornos Logarítmicos
-    ret_asset = np.log(asset_series / asset_series.shift(1)).dropna()
-    ret_spy = np.log(spy_series / spy_series.shift(1)).dropna()
-    df_retornos = pd.concat([ret_asset, ret_spy], axis=1).dropna()
+    # Retornos para análisis
+    ret_asset = np.log(asset_p / asset_p.shift(1)).dropna()
+    ret_spy = np.log(spy_p / spy_p.shift(1)).dropna()
+    df_ret = pd.concat([ret_asset, ret_spy], axis=1).dropna()
 
-    st.title(f"Análisis de {ticker_input}")
+    st.title(f"Plataforma de Análisis: {ticker_user}")
 
-    if opcion_menu == "📈 Análisis de Mercado":
-        # Métricas de cabecera
-        rend_total = (asset_series.iloc[-1] / asset_series.iloc[0]) - 1
+    if seccion == "📈 Análisis de Mercado":
+        # Métricas
+        rend_total = (asset_p.iloc[-1] / asset_p.iloc[0]) - 1
         c1, c2, c3 = st.columns(3)
-        c1.metric("Rendimiento Agregado", f"{rend_total:.2%}")
-        c2.metric("Precio Actual", f"{asset_series.iloc[-1]:.2f}")
-        c3.metric("Volatilidad (Desv. Est.)", f"{ret_asset.std():.4f}")
+        c1.metric("Rendimiento Período", f"{rend_total:.2%}")
+        c2.metric("Precio Cierre", f"{asset_p.iloc[-1]:.2f}")
+        c3.metric("Volatilidad (Std)", f"{ret_asset.std():.4f}")
 
-        # Pestañas de visualización
-        t_lineas, t_dist = st.tabs(["Evolución Temporal", "Distribución Estadística"])
-        with t_lineas:
-            st.plotly_chart(px.line(asset_series, title=f"Precio de Cierre ({frecuencia_label})"), use_container_width=True)
+        # Gráficos
+        tab1, tab2 = st.tabs(["Precios y Retornos", "Distribución Estadística"])
+        with tab1:
+            st.plotly_chart(px.line(asset_p, title="Evolución del Precio"), use_container_width=True)
             st.plotly_chart(px.line(ret_asset, title="Retornos Logarítmicos"), use_container_width=True)
-        with t_dist:
-            st.write("Análisis de la forma de los retornos (detección de colas pesadas y outliers).")
-            st.plotly_chart(px.histogram(ret_asset, title="Histograma de Retornos", marginal="box"), use_container_width=True)
+        with tab2:
+            st.plotly_chart(px.histogram(ret_asset, title="Histograma y Outliers", marginal="box"), use_container_width=True)
 
-    elif opcion_menu == "📊 Econometría Aplicada":
-        st.subheader("Modelado Estadístico")
-        col_e1, col_e2 = st.columns([2, 1])
+    elif seccion == "📊 Econometría":
+        st.subheader("Modelos de Regresión y Estacionariedad")
+        col_ols, col_adf = st.columns([2, 1])
         
-        with col_e1:
-            st.markdown("**Regresión Lineal OLS (Activo vs S&P 500)**")
-            X = sm.add_constant(df_retornos["SPY"])
-            modelo = sm.OLS(df_retornos[ticker_input], X).fit()
-            st.text(modelo.summary())
+        with col_ols:
+            st.markdown("**Regresión vs S&P 500 (Cálculo del Beta)**")
+            X = sm.add_constant(df_ret["SPY"])
+            res_ols = sm.OLS(df_ret[ticker_user], X).fit()
+            st.text(res_ols.summary())
         
-        with col_e2:
-            st.markdown("**Test de Dickey-Fuller (ADF)**")
-            res_adf = adfuller(asset_series)
-            st.write(f"Estadístico t: `{res_adf[0]:.4f}`")
-            st.write(f"p-value: `{res_adf[1]:.4f}`")
-            if res_adf[1] < 0.05:
-                st.success("La serie es Estacionaria.")
+        with col_adf:
+            st.markdown("**Test de Dickey-Fuller**")
+            p_val = adfuller(asset_p)[1]
+            st.metric("p-value ADF", f"{p_val:.4f}")
+            if p_val < 0.05:
+                st.success("Serie Estacionaria")
             else:
-                st.warning("Serie No Estacionaria (Raíz Unitaria).")
+                st.warning("Serie No Estacionaria")
 
-    elif opcion_menu == "📑 Datos Fundamentales":
-        st.subheader("Balances y Estados Contables")
-        ticker_obj = yf.Ticker(ticker_input)
-        tipo_df = st.selectbox("Selecciona el reporte", ["Balance Sheet", "Income Statement", "Cash Flow"])
-        
-        if tipo_df == "Balance Sheet":
-            df_fund = ticker_obj.balance_sheet
-        elif tipo_df == "Income Statement":
-            df_fund = ticker_obj.income_stmt
-        else:
-            df_fund = ticker_obj.cashflow
-        
-        st.dataframe(df_fund, use_container_width=True)
+    elif seccion == "📑 Balances Contables":
+        st.subheader("Información Financiera")
+        rep = st.radio("Reporte:", ["Balance Sheet", "Income Statement", "Cash Flow"], horizontal=True)
+        t_obj = yf.Ticker(ticker_user)
+        df_f = t_obj.balance_sheet if rep == "Balance Sheet" else (t_obj.income_stmt if rep == "Income Statement" else t_obj.cashflow)
+        st.dataframe(df_f, use_container_width=True)
 
-    # --- 6. CHATBOT FLOTANTE Y EXPORTACIÓN (SIDEBAR) ---
+    # --- 6. CHATBOT FLOTANTE Y EXPORTACIÓN ---
     with st.sidebar:
         st.markdown("---")
-        # El Chatbot en un Popover para que sea "flotante" sobre el sidebar
-        with st.popover("💬 Consultar Asistente IA"):
-            st.markdown("### Profesor Virtual de Econometría")
-            container_chat = st.container(height=300)
+        with st.popover("💬 Preguntar al Asistente IA"):
+            st.write("#### Profesor de Econometría Virtual")
+            chat_box = st.container(height=300)
             
             for m in st.session_state.messages:
-                container_chat.chat_message(m["role"]).write(m["content"])
+                chat_box.chat_message(m["role"]).write(m["content"])
 
-            if p_user := st.chat_input("¿Qué significa mi Beta?"):
-                st.session_state.messages.append({"role": "user", "content": p_user})
-                container_chat.chat_message("user").write(p_user)
+            if p := st.chat_input("¿Cómo interpreto el p-value?"):
+                st.session_state.messages.append({"role": "user", "content": p})
+                chat_box.chat_message("user").write(p)
                 
                 if model_ia:
-                    # Cálculo rápido del Beta para darle contexto a la IA
-                    X_ia = sm.add_constant(df_retornos["SPY"])
-                    b_ia = sm.OLS(df_retornos[ticker_input], X_ia).fit().params[1]
-                    contexto = f"Activo: {ticker_input}. Beta: {b_ia:.4f}. Pregunta: {p_user}"
-                    
-                    response = model_ia.generate_content(contexto)
-                    st.session_state.messages.append({"role": "assistant", "content": response.text})
-                    container_chat.chat_message("assistant").write(response.text)
+                    # Contexto para evitar respuestas genéricas
+                    beta_val = sm.OLS(ret_asset, sm.add_constant(ret_spy)).fit().params[1]
+                    context = f"Contexto: Ticker {ticker_user}, Beta {beta_val:.4f}. Pregunta: {p}"
+                    resp = model_ia.generate_content(context)
+                    st.session_state.messages.append({"role": "assistant", "content": resp.text})
+                    st.rerun()
                 else:
                     st.error("IA no disponible.")
 
-        # Botones de Descarga
-        st.subheader("📥 Exportar")
-        st.download_button("Descargar CSV", data=data.to_csv().encode('utf-8'), file_name=f"{ticker_input}_data.csv")
-        st.download_button("Descargar Excel", data=to_excel(data), file_name=f"{ticker_input}_data.xlsx")
+        # Exportar
+        st.subheader("📥 Exportar Datos")
+        st.download_button("Descargar CSV", data=data.to_csv().encode('utf-8'), file_name=f"{ticker_user}.csv")
+        
+        # Función para Excel
+        out = io.BytesIO()
+        with pd.ExcelWriter(out, engine='xlsxwriter') as writer:
+            data.to_excel(writer, index=True)
+        st.download_button("Descargar Excel", data=out.getvalue(), file_name=f"{ticker_user}.xlsx")
 
 except Exception as e:
-    st.error(f"Error en la aplicación: {e}")
+    st.error(f"Error en la terminal: {e}")
