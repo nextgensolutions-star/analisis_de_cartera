@@ -9,123 +9,99 @@ from datetime import datetime, timedelta
 import io
 import google.generativeai as genai
 
-# 1. CONFIGURACIÓN DE PÁGINA
+# 1. CONFIGURACIÓN INICIAL
 st.set_page_config(page_title="Terminal Económica Pro", layout="wide")
-st.title("📊 Terminal de Análisis Económico y Financiero")
 
-# --- 2. CONFIGURACIÓN DE IA (Instrucciones del Sistema) ---
-instrucciones_ia = """
-Eres un Asistente Experto en Econometría de la Maestría en Economía Aplicada. 
-Tu función es interpretar resultados de modelos financieros (Beta, OLS, ADF) 
-de forma académica y clara. Cita conceptos técnicos cuando sea necesario.
-"""
+# Estilo para el botón del chat
+st.markdown("""
+    <style>
+    .stPopover { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# Inicializar IA de forma segura
-ia_lista = False
-try:
-    if "GEMINI_API_KEY" in st.secrets:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model_ia = genai.GenerativeModel(
-            model_name='gemini-1.5-flash',
-            system_instruction=instrucciones_ia
-        )
-        ia_lista = True
-    else:
-        st.sidebar.warning("⚠️ Chatbot: Falta GEMINI_API_KEY en los secretos.")
-except Exception as e:
-    st.sidebar.error(f"Error al configurar IA: {e}")
+st.title("📊 Terminal de Análisis Económico")
 
-# Inicializar historial de mensajes
+# --- 2. CONFIGURACIÓN DE IA (CORREGIDA) ---
+instrucciones_ia = "Eres un experto en econometría aplicada. Ayuda al usuario a interpretar resultados estadísticos."
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- 3. BARRA LATERAL (FILTROS) ---
-st.sidebar.header("Configuración")
-tipo_activo = st.sidebar.selectbox("Tipo de Activo", ["Acciones", "Criptos", "Forex", "Índices"])
-ticker_map = {"Acciones": "AAPL", "Criptos": "BTC-USD", "Forex": "EURUSD=X", "Índices": "^GSPC"}
-ticker = st.sidebar.text_input("Ticker", ticker_map[tipo_activo])
+# Intentar inicializar el modelo con el nombre correcto
+model_ia = None
+if "GEMINI_API_KEY" in st.secrets:
+    try:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        # Cambiamos a 'gemini-1.5-flash' asegurando el formato
+        model_ia = genai.GenerativeModel(
+            model_name='models/gemini-1.5-flash', 
+            system_instruction=instrucciones_ia
+        )
+    except Exception as e:
+        st.sidebar.error(f"Error al cargar el modelo de IA: {e}")
+else:
+    st.sidebar.warning("Configura tu GEMINI_API_KEY para usar el asistente.")
 
-col_f1, col_f2 = st.sidebar.columns(2)
-with col_f1:
-    fecha_inicio = st.date_input("Desde", datetime.now() - timedelta(days=365*2))
-with col_f2:
-    fecha_fin = st.date_input("Hasta", datetime.now())
-
+# --- 3. FILTROS Y DATOS ---
+st.sidebar.header("Parámetros")
+ticker = st.sidebar.text_input("Ticker", "AAPL")
 frecuencia_label = st.sidebar.selectbox("Frecuencia", ["Diario", "Semanal", "Mensual", "Trimestral", "Anual"])
 mapa_resample = {"Diario": "D", "Semanal": "W", "Mensual": "M", "Trimestral": "Q", "Anual": "YE"}
 
-# ESTA ES LA CLAVE: El menú de navegación
-opcion = st.sidebar.selectbox(
-    "Selecciona el Análisis",
-    ["Precios y Retornos", "Análisis Econométrico", "Datos Fundamentales", "🤖 Asistente IA"]
-)
+opcion = st.sidebar.radio("Sección:", ["Análisis", "Econometría", "Balances"])
 
-# --- 4. PROCESAMIENTO DE DATOS ---
 @st.cache_data
-def obtener_datos(ticker, start, end, freq):
-    df = yf.download([ticker, "SPY"], start=start, end=end)['Close']
-    df_res = df.resample(mapa_resample[freq]).last().dropna()
-    return df_res
+def obtener_datos(ticker, freq):
+    data = yf.download([ticker, "SPY"], period="2y")['Close']
+    return data.resample(mapa_resample[freq]).last().dropna()
 
 try:
-    data = obtener_datos(ticker, fecha_inicio, fecha_fin, frecuencia_label)
-    asset_series = data[ticker]
-    retornos_all = np.log(data / data.shift(1)).dropna()
+    df = obtener_datos(ticker, frecuencia_label)
+    asset_series = df[ticker]
+    ret_asset = np.log(asset_series / asset_series.shift(1)).dropna()
+    ret_spy = np.log(df["SPY"] / df["SPY"].shift(1)).dropna()
 
-    # --- 5. LÓGICA DE NAVEGACIÓN (Lo que aparece en pantalla) ---
-    
-    if opcion == "Precios y Retornos":
-        rendimiento_total = (asset_series.iloc[-1] / asset_series.iloc[0]) - 1
-        st.metric("Rendimiento Agregado", f"{rendimiento_total:.2%}")
-        
-        tab_lin, tab_dist = st.tabs(["Gráficos", "Distribución"])
-        with tab_lin:
-            st.plotly_chart(px.line(asset_series, title="Precio"), use_container_width=True)
-            st.plotly_chart(px.line(retornos_all[ticker], title="Retornos"), use_container_width=True)
-        with tab_dist:
-            st.plotly_chart(px.histogram(retornos_all[ticker], title="Histograma", marginal="box"), use_container_width=True)
+    # --- 4. INTERFAZ ---
+    if opcion == "Análisis":
+        st.plotly_chart(px.line(asset_series, title=f"Evolución {ticker}"), use_container_width=True)
+        st.plotly_chart(px.histogram(ret_asset, title="Distribución de Retornos", marginal="box"), use_container_width=True)
 
-    elif opcion == "Análisis Econométrico":
-        st.subheader("Modelos")
-        Y = retornos_all[ticker]
-        X = sm.add_constant(retornos_all["SPY"])
-        modelo = sm.OLS(Y, X).fit()
-        res_adf = adfuller(asset_series)
-        
-        st.write(f"**Beta vs SP500:** {modelo.params[1]:.4f}")
-        st.write(f"**P-Value ADF:** {res_adf[1]:.4f}")
-        st.text(modelo.summary())
+    elif opcion == "Econometría":
+        # Aseguramos que los retornos tengan la misma longitud para OLS
+        df_ret = pd.concat([ret_asset, ret_spy], axis=1).dropna()
+        X = sm.add_constant(df_ret["SPY"])
+        res_ols = sm.OLS(df_ret[ticker], X).fit()
+        st.write(f"**Beta:** {res_ols.params[1]:.4f}")
+        st.text(res_ols.summary())
 
-    elif opcion == "Datos Fundamentales":
-        st.dataframe(yf.Ticker(ticker).balance_sheet)
+    # --- 5. CHATBOT FLOTANTE (POPOVER) ---
+    with st.sidebar:
+        st.markdown("---")
+        with st.popover("💬 Consultar Asistente"):
+            st.write("### Asistente Econométrico")
+            
+            chat_container = st.container(height=350)
+            for m in st.session_state.messages:
+                chat_container.chat_message(m["role"]).write(m["content"])
 
-    elif opcion == "🤖 Asistente IA":
-        st.subheader("🤖 Consultor Econométrico Virtual")
-        
-        if not ia_lista:
-            st.error("El chatbot no está configurado correctamente. Revisa tu GEMINI_API_KEY.")
-        else:
-            # Mostrar mensajes previos
-            for message in st.session_state.messages:
-                with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
-
-            # Entrada de usuario
-            if prompt := st.chat_input("¿Qué significan estos resultados?"):
+            if prompt := st.chat_input("¿Qué significa mi Beta?"):
                 st.session_state.messages.append({"role": "user", "content": prompt})
-                with st.chat_message("user"):
-                    st.markdown(prompt)
-
-                # Contexto dinámico
-                beta = sm.OLS(retornos_all[ticker], sm.add_constant(retornos_all["SPY"])).fit().params[1]
-                adf_p = adfuller(asset_series)[1]
+                chat_container.chat_message("user").write(prompt)
                 
-                contexto = f"Ticker: {ticker}. Beta: {beta:.4f}. ADF p-value: {adf_p:.4f}. Pregunta: {prompt}"
-                
-                with st.chat_message("assistant"):
-                    response = model_ia.generate_content(contexto)
-                    st.markdown(response.text)
-                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                if model_ia:
+                    try:
+                        # Inyectamos contexto real del análisis al chat
+                        # Solo calculamos el beta si hay datos
+                        beta_val = sm.OLS(ret_asset, sm.add_constant(ret_spy)).fit().params[1]
+                        contexto = f"Activo: {ticker}. Beta actual: {beta_val:.4f}. Pregunta: {prompt}"
+                        
+                        response = model_ia.generate_content(contexto)
+                        st.session_state.messages.append({"role": "assistant", "content": response.text})
+                        chat_container.chat_message("assistant").write(response.text)
+                    except Exception as e:
+                        st.error(f"Error en la IA: {e}")
+                else:
+                    st.error("IA no disponible.")
 
 except Exception as e:
-    st.error(f"Error en la aplicación: {e}")
+    st.error(f"Error: {e}")
