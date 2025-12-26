@@ -24,7 +24,7 @@ st.markdown("""
 # --- 2. INICIALIZACIÓN DE IA (Detección automática de modelo) ---
 def setup_ai():
     if "GEMINI_API_KEY" not in st.secrets:
-        return None, "⚠️ Clave no configurada en Secrets."
+        return None, "⚠️ Clave no configurada en Secrets.", []
     
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -46,15 +46,15 @@ def setup_ai():
                 model_name=target_model,
                 system_instruction="Eres un experto en econometría aplicada. Explica resultados de OLS y ADF de forma académica."
             )
-            return model, f"✅ IA Activa: {target_model.split('/')[-1]}"
-        return None, "❌ No se encontraron modelos disponibles."
+            return model, f"✅ IA Activa: {target_model.split('/')[-1]}", available_models
+        return None, f"❌ Modelos disponibles: {len(available_models)}, pero ninguno compatible.", available_models
     except Exception as e:
-        return None, f"⚠️ Error IA: {str(e)}"
+        return None, f"⚠️ Error IA: {str(e)}", []
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-model_ia, status_ia = setup_ai()
+model_ia, status_ia, models_list = setup_ai()
 
 # --- 3. BARRA LATERAL: CONFIGURACIÓN ---
 st.sidebar.header("📊 Parámetros de Análisis")
@@ -73,7 +73,7 @@ with col_f2:
 f_label = st.sidebar.selectbox("Frecuencia", ["Diario", "Semanal", "Mensual", "Trimestral", "Anual"])
 m_resample = {"Diario": "D", "Semanal": "W", "Mensual": "ME", "Trimestral": "QE", "Anual": "YE"}
 
-seccion = st.sidebar.radio("Navegación", ["📈 Análisis de Mercado", "📊 Econometría", "📑 Balances Contables"])
+seccion = st.sidebar.radio("Navegación", ["📈 Análisis de Mercado", "📊 Econometría", "📑 Balances Contables", "💬 Asistente IA"])
 
 # --- 4. CARGA DE DATOS ---
 @st.cache_data
@@ -136,44 +136,53 @@ try:
         df_f = t_obj.balance_sheet if rep == "Balance Sheet" else (t_obj.income_stmt if rep == "Income Statement" else t_obj.cashflow)
         st.dataframe(df_f, use_container_width=True)
 
-    # --- 6. CHATBOT FLOTANTE Y EXPORTACIÓN ---
+    elif seccion == "💬 Asistente IA":
+        st.subheader("🤖 Profesor de Econometría Virtual")
+        st.write("Pregúntame sobre interpretación de resultados, conceptos estadísticos o análisis econométricos.")
+        
+        # Mostrar historial de mensajes
+        for m in st.session_state.messages:
+            with st.chat_message(m["role"]):
+                st.write(m["content"])
+        
+        # Input de chat
+        if prompt := st.chat_input("Escribe tu pregunta aquí... (ej: ¿Cómo interpreto el p-value?)"):
+            # Mostrar mensaje del usuario inmediatamente
+            with st.chat_message("user"):
+                st.write(prompt)
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            
+            if model_ia:
+                with st.chat_message("assistant"):
+                    with st.spinner("Pensando..."):
+                        try:
+                            # Contexto para evitar respuestas genéricas
+                            beta_val = sm.OLS(ret_asset, sm.add_constant(ret_spy)).fit().params[1]
+                            context = f"Contexto: Ticker {ticker_user}, Beta {beta_val:.4f}. Pregunta: {prompt}"
+                            
+                            # Generar respuesta
+                            resp = model_ia.generate_content(context)
+                            respuesta_texto = resp.text
+                            
+                            # Mostrar respuesta
+                            st.write(respuesta_texto)
+                            
+                            # Agregar al historial
+                            st.session_state.messages.append({"role": "assistant", "content": respuesta_texto})
+                            
+                        except Exception as e:
+                            error_msg = f"Error al generar respuesta: {str(e)}"
+                            st.error(error_msg)
+                            st.session_state.messages.append({"role": "assistant", "content": f"❌ {error_msg}"})
+            else:
+                with st.chat_message("assistant"):
+                    msg = "⚠️ IA no disponible. Verifica que tu API key esté configurada correctamente en Streamlit Secrets."
+                    st.error(msg)
+                    st.session_state.messages.append({"role": "assistant", "content": msg})
+
+    # --- 6. EXPORTACIÓN EN SIDEBAR ---
     with st.sidebar:
         st.markdown("---")
-        with st.popover("💬 Preguntar al Asistente IA"):
-            st.write("#### Profesor de Econometría Virtual")
-            
-            # Mostrar mensajes existentes
-            for m in st.session_state.messages:
-                with st.chat_message(m["role"]):
-                    st.write(m["content"])
-
-            # Input de chat
-            if p := st.chat_input("¿Cómo interpreto el p-value?"):
-                # Agregar mensaje del usuario
-                st.session_state.messages.append({"role": "user", "content": p})
-                
-                if model_ia:
-                    try:
-                        # Contexto para evitar respuestas genéricas
-                        beta_val = sm.OLS(ret_asset, sm.add_constant(ret_spy)).fit().params[1]
-                        context = f"Contexto: Ticker {ticker_user}, Beta {beta_val:.4f}. Pregunta: {p}"
-                        
-                        # Generar respuesta
-                        resp = model_ia.generate_content(context)
-                        respuesta_texto = resp.text
-                        
-                        # Agregar respuesta del asistente
-                        st.session_state.messages.append({"role": "assistant", "content": respuesta_texto})
-                        
-                        # Recargar para mostrar la nueva conversación
-                        st.rerun()
-                        
-                    except Exception as e:
-                        st.error(f"Error al generar respuesta: {str(e)}")
-                else:
-                    st.error("IA no disponible. Verifica tu API key en Secrets.")
-
-        # Exportar
         st.subheader("📥 Exportar Datos")
         st.download_button("Descargar CSV", data=data.to_csv().encode('utf-8'), file_name=f"{ticker_user}.csv")
         
