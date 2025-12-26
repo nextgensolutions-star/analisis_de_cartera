@@ -141,24 +141,37 @@ try:
         st.markdown("---")
         with st.popover("💬 Preguntar al Asistente IA"):
             st.write("#### Profesor de Econometría Virtual")
-            chat_box = st.container(height=300)
             
+            # Mostrar mensajes existentes
             for m in st.session_state.messages:
-                chat_box.chat_message(m["role"]).write(m["content"])
+                with st.chat_message(m["role"]):
+                    st.write(m["content"])
 
+            # Input de chat
             if p := st.chat_input("¿Cómo interpreto el p-value?"):
+                # Agregar mensaje del usuario
                 st.session_state.messages.append({"role": "user", "content": p})
-                chat_box.chat_message("user").write(p)
                 
                 if model_ia:
-                    # Contexto para evitar respuestas genéricas
-                    beta_val = sm.OLS(ret_asset, sm.add_constant(ret_spy)).fit().params[1]
-                    context = f"Contexto: Ticker {ticker_user}, Beta {beta_val:.4f}. Pregunta: {p}"
-                    resp = model_ia.generate_content(context)
-                    st.session_state.messages.append({"role": "assistant", "content": resp.text})
-                    st.rerun()
+                    try:
+                        # Contexto para evitar respuestas genéricas
+                        beta_val = sm.OLS(ret_asset, sm.add_constant(ret_spy)).fit().params[1]
+                        context = f"Contexto: Ticker {ticker_user}, Beta {beta_val:.4f}. Pregunta: {p}"
+                        
+                        # Generar respuesta
+                        resp = model_ia.generate_content(context)
+                        respuesta_texto = resp.text
+                        
+                        # Agregar respuesta del asistente
+                        st.session_state.messages.append({"role": "assistant", "content": respuesta_texto})
+                        
+                        # Recargar para mostrar la nueva conversación
+                        st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"Error al generar respuesta: {str(e)}")
                 else:
-                    st.error("IA no disponible.")
+                    st.error("IA no disponible. Verifica tu API key en Secrets.")
 
         # Exportar
         st.subheader("📥 Exportar Datos")
