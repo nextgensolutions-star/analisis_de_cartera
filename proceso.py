@@ -12,54 +12,12 @@ import google.generativeai as genai
 # 1. CONFIGURACIÓN Y ESTILOS
 st.set_page_config(page_title="Terminal Económica Pro", layout="wide")
 
-# Inicializar tema en session_state
-if "tema_oscuro" not in st.session_state:
-    st.session_state.tema_oscuro = False
-
-# CSS dinámico según el tema
-def aplicar_tema():
-    if st.session_state.tema_oscuro:
-        return """
-        <style>
-        .stApp {
-            background-color: #0e1117;
-            color: #fafafa;
-        }
-        .stMetric {
-            background-color: #1e2130;
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #2e3345;
-            color: #fafafa;
-        }
-        .stMarkdown {
-            color: #fafafa;
-        }
-        [data-testid="stSidebar"] {
-            background-color: #0e1117;
-        }
-        </style>
-        """
-    else:
-        return """
-        <style>
-        .stApp {
-            background-color: #ffffff;
-            color: #000000;
-        }
-        .stMetric {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #e9ecef;
-        }
-        [data-testid="stSidebar"] {
-            background-color: #f0f2f6;
-        }
-        </style>
-        """
-
-st.markdown(aplicar_tema(), unsafe_allow_html=True)
+# CSS básico
+st.markdown("""
+    <style>
+    .stMetric { background-color: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #e9ecef; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- 2. INICIALIZACIÓN DE IA (Detección automática de modelo) ---
 def setup_ai():
@@ -98,15 +56,19 @@ model_ia, status_ia, models_list = setup_ai()
 
 # --- 3. BARRA LATERAL: CONFIGURACIÓN ---
 st.sidebar.header("📊 Parámetros de Análisis")
+st.sidebar.info(status_ia)
 
-# Toggle de tema
-col_tema1, col_tema2 = st.sidebar.columns([3, 1])
-with col_tema1:
-    st.sidebar.info(status_ia)
-with col_tema2:
-    if st.button("🌓"):
-        st.session_state.tema_oscuro = not st.session_state.tema_oscuro
-        st.rerun()
+# Botón de modo oscuro/claro
+modo_oscuro = st.sidebar.toggle("🌙 Modo Oscuro", value=False)
+
+if modo_oscuro:
+    st.markdown("""
+        <style>
+        .stApp { background-color: #0e1117; color: #fafafa; }
+        .stSidebar { background-color: #262730; }
+        .stMetric { background-color: #1e2130; color: #fafafa; border: 1px solid #2e3345; }
+        </style>
+        """, unsafe_allow_html=True)
 
 # Base de datos de tickers populares
 TICKERS_DB = {
