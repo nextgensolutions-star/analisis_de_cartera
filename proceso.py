@@ -246,55 +246,57 @@ try:
 
         # Gráficos
         st.subheader("📊 Visualización de Datos")
-        col_g1, col_g2, col_g3 = st.columns(3)
         
-        with col_g1:
-            if modo_oscuro:
-                fig1 = px.line(asset_p, title="Evolución del Precio")
-                fig1.update_layout(
-                    plot_bgcolor='#0e1117',
-                    paper_bgcolor='#0e1117',
-                    font_color='#ff4444',
-                    title_font_color='#ff4444',
-                    xaxis=dict(gridcolor='#2d3142', color='#ff4444'),
-                    yaxis=dict(gridcolor='#2d3142', color='#ff4444')
-                )
-                fig1.update_traces(line_color='#ff6b35')
-                st.plotly_chart(fig1, use_container_width=True)
-            else:
-                st.plotly_chart(px.line(asset_p, title="Evolución del Precio"), use_container_width=True)
+        # Gráfico 1: Evolución del Precio
+        if modo_oscuro:
+            fig1 = px.line(asset_p, title="Evolución del Precio")
+            fig1.update_layout(
+                plot_bgcolor='#0e1117',
+                paper_bgcolor='#0e1117',
+                font_color='#ff4444',
+                title_font_color='#ff4444',
+                xaxis=dict(gridcolor='#2d3142', color='#ff4444'),
+                yaxis=dict(gridcolor='#2d3142', color='#ff4444'),
+                height=400
+            )
+            fig1.update_traces(line_color='#ff6b35')
+            st.plotly_chart(fig1, use_container_width=True)
+        else:
+            st.plotly_chart(px.line(asset_p, title="Evolución del Precio"), use_container_width=True)
         
-        with col_g2:
-            if modo_oscuro:
-                fig2 = px.line(ret_asset, title="Retornos Logarítmicos")
-                fig2.update_layout(
-                    plot_bgcolor='#0e1117',
-                    paper_bgcolor='#0e1117',
-                    font_color='#ff4444',
-                    title_font_color='#ff4444',
-                    xaxis=dict(gridcolor='#2d3142', color='#ff4444'),
-                    yaxis=dict(gridcolor='#2d3142', color='#ff4444')
-                )
-                fig2.update_traces(line_color='#ff6b35')
-                st.plotly_chart(fig2, use_container_width=True)
-            else:
-                st.plotly_chart(px.line(ret_asset, title="Retornos Logarítmicos"), use_container_width=True)
+        # Gráfico 2: Retornos Logarítmicos
+        if modo_oscuro:
+            fig2 = px.line(ret_asset, title="Retornos Logarítmicos")
+            fig2.update_layout(
+                plot_bgcolor='#0e1117',
+                paper_bgcolor='#0e1117',
+                font_color='#ff4444',
+                title_font_color='#ff4444',
+                xaxis=dict(gridcolor='#2d3142', color='#ff4444'),
+                yaxis=dict(gridcolor='#2d3142', color='#ff4444'),
+                height=400
+            )
+            fig2.update_traces(line_color='#ff6b35')
+            st.plotly_chart(fig2, use_container_width=True)
+        else:
+            st.plotly_chart(px.line(ret_asset, title="Retornos Logarítmicos"), use_container_width=True)
         
-        with col_g3:
-            if modo_oscuro:
-                fig3 = px.histogram(ret_asset, title="Distribución Estadística", marginal="box")
-                fig3.update_layout(
-                    plot_bgcolor='#0e1117',
-                    paper_bgcolor='#0e1117',
-                    font_color='#ff4444',
-                    title_font_color='#ff4444',
-                    xaxis=dict(gridcolor='#2d3142', color='#ff4444'),
-                    yaxis=dict(gridcolor='#2d3142', color='#ff4444')
-                )
-                fig3.update_traces(marker_color='#ff6b35')
-                st.plotly_chart(fig3, use_container_width=True)
-            else:
-                st.plotly_chart(px.histogram(ret_asset, title="Distribución Estadística", marginal="box"), use_container_width=True)
+        # Gráfico 3: Distribución Estadística
+        if modo_oscuro:
+            fig3 = px.histogram(ret_asset, title="Distribución de Retornos", marginal="box")
+            fig3.update_layout(
+                plot_bgcolor='#0e1117',
+                paper_bgcolor='#0e1117',
+                font_color='#ff4444',
+                title_font_color='#ff4444',
+                xaxis=dict(gridcolor='#2d3142', color='#ff4444'),
+                yaxis=dict(gridcolor='#2d3142', color='#ff4444'),
+                height=400
+            )
+            fig3.update_traces(marker_color='#ff6b35')
+            st.plotly_chart(fig3, use_container_width=True)
+        else:
+            st.plotly_chart(px.histogram(ret_asset, title="Distribución de Retornos", marginal="box"), use_container_width=True)
 
     elif seccion == "📊 Econometría":
         st.subheader("Modelos de Regresión y Estacionariedad")
