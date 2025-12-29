@@ -22,7 +22,7 @@ st.markdown("""
 # --- 2. INICIALIZACIÓN DE IA (Detección automática de modelo) ---
 def setup_ai():
     if "GEMINI_API_KEY" not in st.secrets:
-        return "⚠️ Clave no configurada en Secrets.", []
+        return "Clave no configurada en Secrets.", []
     
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
