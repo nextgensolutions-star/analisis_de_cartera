@@ -62,86 +62,21 @@ st.sidebar.info(status_ia)
 modo_oscuro = st.sidebar.toggle("🌙 Modo Oscuro", value=False)
 
 if modo_oscuro:
-    st.markdown("""
-        <style>
-        .stApp { 
-            background-color: #0e1117 !important; 
-            color: #fafafa !important; 
-        }
-        [data-testid="stSidebar"] { 
-            background-color: #1a1d29 !important; 
-        }
-        [data-testid="stSidebar"] .stMarkdown,
-        [data-testid="stSidebar"] label,
-        [data-testid="stSidebar"] p {
-            color: #fafafa !important;
-        }
-        [data-testid="stSidebar"] button {
-            background-color: #ff6b35 !important;
-            color: #0e1117 !important;
-            border: none !important;
-            font-weight: 600 !important;
-        }
-        [data-testid="stSidebar"] button:hover {
-            background-color: #ff8c42 !important;
-            color: #0e1117 !important;
-        }
-        [data-testid="stSidebar"] [data-baseweb="select"],
-        [data-testid="stSidebar"] input {
-            background-color: #2d3142 !important;
-            color: #fafafa !important;
-            border-color: #ff6b35 !important;
-        }
-        [data-testid="stMetric"] { 
-            background-color: #1a1d29 !important; 
-            border: 1px solid #2d3142 !important;
-            padding: 15px !important;
-            border-radius: 10px !important;
-        }
-        [data-testid="stMetricLabel"] {
-            color: #fafafa !important;
-            font-size: 14px !important;
-        }
-        [data-testid="stMetricValue"] {
-            color: #ff6b35 !important;
-            font-size: 24px !important;
-            font-weight: bold !important;
-        }
-        [data-testid="stMetricDelta"] {
-            color: #ffa07a !important;
-        }
-        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, 
-        .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
-            color: #fafafa !important;
-        }
-        .stMarkdown p, .stMarkdown li, .stMarkdown span {
-            color: #e0e0e0 !important;
-        }
-        .stTabs [data-baseweb="tab-list"] {
-            background-color: #1a1d29 !important;
-        }
-        .stTabs [data-baseweb="tab"] {
-            color: #fafafa !important;
-        }
-        .stTabs [aria-selected="true"] {
-            color: #ff6b35 !important;
-            border-bottom-color: #ff6b35 !important;
-        }
-        .stDataFrame {
-            background-color: #1a1d29 !important;
-            color: #fafafa !important;
-        }
-        .stChatMessage {
-            background-color: #1a1d29 !important;
-            color: #fafafa !important;
-        }
-        textarea, input {
-            background-color: #2d3142 !important;
-            color: #fafafa !important;
-            border-color: #ff6b35 !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    dark_mode_css = """
+    <style>
+    .stApp { background-color: #0e1117 !important; color: #fafafa !important; }
+    [data-testid="stSidebar"] { background-color: #1a1d29 !important; }
+    [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p { color: #fafafa !important; }
+    [data-testid="stSidebar"] button { background-color: #ff6b35 !important; color: #0e1117 !important; border: none !important; font-weight: 600 !important; }
+    [data-testid="stSidebar"] button:hover { background-color: #ff8c42 !important; }
+    [data-testid="stMetric"] { background-color: #1a1d29 !important; border: 1px solid #2d3142 !important; }
+    [data-testid="stMetricLabel"] { color: #fafafa !important; }
+    [data-testid="stMetricValue"] { color: #ff6b35 !important; font-weight: bold !important; }
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #fafafa !important; }
+    .stMarkdown p { color: #e0e0e0 !important; }
+    </style>
+    """
+    st.markdown(dark_mode_css, unsafe_allow_html=True)
 
 # Base de datos de tickers populares
 TICKERS_DB = {
