@@ -21,7 +21,7 @@ st.markdown("""
 # 2. INICIALIZACIÓN DE IA
 def setup_ai():
     if "GEMINI_API_KEY" not in st.secrets:
-        return None, "Clave no configurada en Secrects.",[]
+        return None, "⚠️ Clave no configurada en Secrets.", []
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
