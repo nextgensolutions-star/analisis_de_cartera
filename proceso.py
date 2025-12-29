@@ -65,9 +65,6 @@ if modo_oscuro:
     dark_mode_css = """
     <style>
     .stApp { background-color: #0e1117 !important; color: #fafafa !important; }
-    header[data-testid="stHeader"] { background-color: #0e1117 !important; }
-    [data-testid="stToolbar"] { background-color: #0e1117 !important; }
-    [data-testid="stDecoration"] { background-color: #0e1117 !important; }
     [data-testid="stSidebar"] { background-color: #1a1d29 !important; }
     [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p { color: #fafafa !important; }
     [data-testid="stSidebar"] button { background-color: #ff6b35 !important; color: #0e1117 !important; border: none !important; font-weight: 600 !important; }
@@ -75,10 +72,10 @@ if modo_oscuro:
     [data-testid="stMetric"] { background-color: #1a1d29 !important; border: 1px solid #2d3142 !important; }
     [data-testid="stMetricLabel"] { color: #ff4444 !important; font-weight: 600 !important; }
     [data-testid="stMetricValue"] { color: #ff6b35 !important; font-weight: bold !important; }
-    h1 { color: #00d4ff !important; font-weight: bold !important; }
-    h2 { color: #00d4ff !important; font-weight: bold !important; }
-    h3 { color: #00d4ff !important; }
-    p { color: #e0e0e0 !important; }
+    .stMarkdown h1 { color: #00d4ff !important; font-weight: bold !important; }
+    .stMarkdown h2 { color: #00d4ff !important; font-weight: bold !important; }
+    .stMarkdown h3 { color: #fafafa !important; }
+    .stMarkdown p { color: #e0e0e0 !important; }
     </style>
     """
     st.markdown(dark_mode_css, unsafe_allow_html=True)
@@ -249,7 +246,7 @@ try:
                  help="β > 1: Más volátil que el mercado | β < 1: Menos volátil | β < 0: Correlación inversa")
 
         # Gráficos - uno debajo del otro
-        st.markdown("## 📊 Visualización de Datos")
+        st.subheader("📊 Visualización de Datos")
         
         # Gráfico 1: Evolución del Precio
         if modo_oscuro:
@@ -266,7 +263,7 @@ try:
             fig1.update_traces(line_color='#ff6b35')
         else:
             fig1 = px.line(asset_p, title="Evolución del Precio")
-        st.plotly_chart(fig1, use_container_width=True, key="grafico_precio")
+        st.plotly_chart(fig1, use_container_width=True)
         
         # Gráfico 2: Retornos Logarítmicos
         if modo_oscuro:
@@ -283,7 +280,7 @@ try:
             fig2.update_traces(line_color='#ff6b35')
         else:
             fig2 = px.line(ret_asset, title="Retornos Logarítmicos")
-        st.plotly_chart(fig2, use_container_width=True, key="grafico_retornos")
+        st.plotly_chart(fig2, use_container_width=True)
         
         # Gráfico 3: Distribución de Retornos
         if modo_oscuro:
@@ -300,7 +297,7 @@ try:
             fig3.update_traces(marker_color='#ff6b35')
         else:
             fig3 = px.histogram(ret_asset, title="Distribución de Retornos", marginal="box")
-        st.plotly_chart(fig3, use_container_width=True, key="grafico_distribucion")
+        st.plotly_chart(fig3, use_container_width=True)
 
     elif seccion == "📊 Econometría":
         st.subheader("Modelos de Regresión y Estacionariedad")
