@@ -64,13 +64,10 @@ modo_oscuro = st.sidebar.toggle("🌙 Modo Oscuro", value=False)
 if modo_oscuro:
     st.markdown("""
         <style>
-        /* Fondo general y textos */
         .stApp { 
             background-color: #0e1117 !important; 
             color: #fafafa !important; 
         }
-        
-        /* Sidebar */
         [data-testid="stSidebar"] { 
             background-color: #1a1d29 !important; 
         }
@@ -79,8 +76,6 @@ if modo_oscuro:
         [data-testid="stSidebar"] p {
             color: #fafafa !important;
         }
-        
-        /* Botones del sidebar */
         [data-testid="stSidebar"] button {
             background-color: #ff6b35 !important;
             color: #0e1117 !important;
@@ -91,16 +86,12 @@ if modo_oscuro:
             background-color: #ff8c42 !important;
             color: #0e1117 !important;
         }
-        
-        /* Selectbox y inputs del sidebar */
         [data-testid="stSidebar"] [data-baseweb="select"],
         [data-testid="stSidebar"] input {
             background-color: #2d3142 !important;
             color: #fafafa !important;
             border-color: #ff6b35 !important;
         }
-        
-        /* Tarjetas de métricas */
         [data-testid="stMetric"] { 
             background-color: #1a1d29 !important; 
             border: 1px solid #2d3142 !important;
@@ -119,19 +110,13 @@ if modo_oscuro:
         [data-testid="stMetricDelta"] {
             color: #ffa07a !important;
         }
-        
-        /* Títulos y headers */
         .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, 
         .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
             color: #fafafa !important;
         }
-        
-        /* Texto general */
         .stMarkdown p, .stMarkdown li, .stMarkdown span {
             color: #e0e0e0 !important;
         }
-        
-        /* Tabs */
         .stTabs [data-baseweb="tab-list"] {
             background-color: #1a1d29 !important;
         }
@@ -142,27 +127,21 @@ if modo_oscuro:
             color: #ff6b35 !important;
             border-bottom-color: #ff6b35 !important;
         }
-        
-        /* Tablas */
         .stDataFrame {
             background-color: #1a1d29 !important;
             color: #fafafa !important;
         }
-        
-        /* Chat messages */
         .stChatMessage {
             background-color: #1a1d29 !important;
             color: #fafafa !important;
         }
-        
-        /* Text areas e inputs */
         textarea, input {
             background-color: #2d3142 !important;
             color: #fafafa !important;
             border-color: #ff6b35 !important;
         }
         </style>
-        """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # Base de datos de tickers populares
 TICKERS_DB = {
@@ -332,10 +311,46 @@ try:
         # Gráficos
         tab1, tab2 = st.tabs(["Precios y Retornos", "Distribución Estadística"])
         with tab1:
-            st.plotly_chart(px.line(asset_p, title="Evolución del Precio"), use_container_width=True)
-            st.plotly_chart(px.line(ret_asset, title="Retornos Logarítmicos"), use_container_width=True)
+            # Configurar tema del gráfico según modo
+            if modo_oscuro:
+                fig1 = px.line(asset_p, title="Evolución del Precio")
+                fig1.update_layout(
+                    plot_bgcolor='#0e1117',
+                    paper_bgcolor='#0e1117',
+                    font_color='#fafafa',
+                    xaxis=dict(gridcolor='#2d3142'),
+                    yaxis=dict(gridcolor='#2d3142')
+                )
+                fig1.update_traces(line_color='#ff6b35')
+                st.plotly_chart(fig1, use_container_width=True)
+                
+                fig2 = px.line(ret_asset, title="Retornos Logarítmicos")
+                fig2.update_layout(
+                    plot_bgcolor='#0e1117',
+                    paper_bgcolor='#0e1117',
+                    font_color='#fafafa',
+                    xaxis=dict(gridcolor='#2d3142'),
+                    yaxis=dict(gridcolor='#2d3142')
+                )
+                fig2.update_traces(line_color='#ff6b35')
+                st.plotly_chart(fig2, use_container_width=True)
+            else:
+                st.plotly_chart(px.line(asset_p, title="Evolución del Precio"), use_container_width=True)
+                st.plotly_chart(px.line(ret_asset, title="Retornos Logarítmicos"), use_container_width=True)
         with tab2:
-            st.plotly_chart(px.histogram(ret_asset, title="Histograma y Outliers", marginal="box"), use_container_width=True)
+            if modo_oscuro:
+                fig3 = px.histogram(ret_asset, title="Histograma y Outliers", marginal="box")
+                fig3.update_layout(
+                    plot_bgcolor='#0e1117',
+                    paper_bgcolor='#0e1117',
+                    font_color='#fafafa',
+                    xaxis=dict(gridcolor='#2d3142'),
+                    yaxis=dict(gridcolor='#2d3142')
+                )
+                fig3.update_traces(marker_color='#ff6b35')
+                st.plotly_chart(fig3, use_container_width=True)
+            else:
+                st.plotly_chart(px.histogram(ret_asset, title="Histograma y Outliers", marginal="box"), use_container_width=True)
 
     elif seccion == "📊 Econometría":
         st.subheader("Modelos de Regresión y Estacionariedad")
