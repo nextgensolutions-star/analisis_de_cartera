@@ -73,7 +73,8 @@ if modo_oscuro:
     [data-testid="stMetricLabel"] { color: #ff4444 !important; font-weight: 600 !important; }
     [data-testid="stMetricValue"] { color: #ff6b35 !important; font-weight: bold !important; }
     .stMarkdown h1 { color: #00d4ff !important; font-weight: bold !important; }
-    .stMarkdown h2, .stMarkdown h3 { color: #fafafa !important; }
+    .stMarkdown h2 { color: #00d4ff !important; font-weight: bold !important; }
+    .stMarkdown h3 { color: #fafafa !important; }
     .stMarkdown p { color: #e0e0e0 !important; }
     </style>
     """
@@ -244,7 +245,7 @@ try:
         c4.metric("Beta vs S&P 500", f"{beta_valor:.4f}", 
                  help="β > 1: Más volátil que el mercado | β < 1: Menos volátil | β < 0: Correlación inversa")
 
-        # Gráficos
+        # Gráficos - uno debajo del otro
         st.subheader("📊 Visualización de Datos")
         
         # Gráfico 1: Evolución del Precio
@@ -260,9 +261,9 @@ try:
                 height=400
             )
             fig1.update_traces(line_color='#ff6b35')
-            st.plotly_chart(fig1, use_container_width=True)
         else:
-            st.plotly_chart(px.line(asset_p, title="Evolución del Precio"), use_container_width=True)
+            fig1 = px.line(asset_p, title="Evolución del Precio")
+        st.plotly_chart(fig1, use_container_width=True)
         
         # Gráfico 2: Retornos Logarítmicos
         if modo_oscuro:
@@ -277,11 +278,11 @@ try:
                 height=400
             )
             fig2.update_traces(line_color='#ff6b35')
-            st.plotly_chart(fig2, use_container_width=True)
         else:
-            st.plotly_chart(px.line(ret_asset, title="Retornos Logarítmicos"), use_container_width=True)
+            fig2 = px.line(ret_asset, title="Retornos Logarítmicos")
+        st.plotly_chart(fig2, use_container_width=True)
         
-        # Gráfico 3: Distribución Estadística
+        # Gráfico 3: Distribución de Retornos
         if modo_oscuro:
             fig3 = px.histogram(ret_asset, title="Distribución de Retornos", marginal="box")
             fig3.update_layout(
@@ -294,9 +295,9 @@ try:
                 height=400
             )
             fig3.update_traces(marker_color='#ff6b35')
-            st.plotly_chart(fig3, use_container_width=True)
         else:
-            st.plotly_chart(px.histogram(ret_asset, title="Distribución de Retornos", marginal="box"), use_container_width=True)
+            fig3 = px.histogram(ret_asset, title="Distribución de Retornos", marginal="box")
+        st.plotly_chart(fig3, use_container_width=True)
 
     elif seccion == "📊 Econometría":
         st.subheader("Modelos de Regresión y Estacionariedad")
