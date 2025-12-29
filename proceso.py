@@ -12,14 +12,54 @@ import google.generativeai as genai
 # 1. CONFIGURACIÓN Y ESTILOS
 st.set_page_config(page_title="Terminal Económica Pro", layout="wide")
 
-# CSS para el botón flotante y diseño de tarjetas
-st.markdown("""
-    <style>
-    .stPopover { width: 100%; }
-    .stMetric { background-color: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #e9ecef; }
-    [data-testid="stSidebarNav"] { padding-top: 20px; }
-    </style>
-    """, unsafe_allow_html=True)
+# Inicializar tema en session_state
+if "tema_oscuro" not in st.session_state:
+    st.session_state.tema_oscuro = False
+
+# CSS dinámico según el tema
+def aplicar_tema():
+    if st.session_state.tema_oscuro:
+        return """
+        <style>
+        .stApp {
+            background-color: #0e1117;
+            color: #fafafa;
+        }
+        .stMetric {
+            background-color: #1e2130;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #2e3345;
+            color: #fafafa;
+        }
+        .stMarkdown {
+            color: #fafafa;
+        }
+        [data-testid="stSidebar"] {
+            background-color: #0e1117;
+        }
+        </style>
+        """
+    else:
+        return """
+        <style>
+        .stApp {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        .stMetric {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+        [data-testid="stSidebar"] {
+            background-color: #f0f2f6;
+        }
+        </style>
+        """
+
+st.markdown(aplicar_tema(), unsafe_allow_html=True)
 
 # --- 2. INICIALIZACIÓN DE IA (Detección automática de modelo) ---
 def setup_ai():
@@ -58,11 +98,108 @@ model_ia, status_ia, models_list = setup_ai()
 
 # --- 3. BARRA LATERAL: CONFIGURACIÓN ---
 st.sidebar.header("📊 Parámetros de Análisis")
-st.sidebar.info(status_ia)
+
+# Toggle de tema
+col_tema1, col_tema2 = st.sidebar.columns([3, 1])
+with col_tema1:
+    st.sidebar.info(status_ia)
+with col_tema2:
+    if st.button("🌓"):
+        st.session_state.tema_oscuro = not st.session_state.tema_oscuro
+        st.rerun()
+
+# Base de datos de tickers populares
+TICKERS_DB = {
+    "Acciones": {
+        "AAPL": "Apple Inc.",
+        "MSFT": "Microsoft Corporation",
+        "GOOGL": "Alphabet Inc. (Google)",
+        "AMZN": "Amazon.com Inc.",
+        "NVDA": "NVIDIA Corporation",
+        "TSLA": "Tesla Inc.",
+        "META": "Meta Platforms Inc.",
+        "BRK-B": "Berkshire Hathaway",
+        "V": "Visa Inc.",
+        "JPM": "JPMorgan Chase",
+        "WMT": "Walmart Inc.",
+        "MA": "Mastercard Inc.",
+        "PG": "Procter & Gamble",
+        "JNJ": "Johnson & Johnson",
+        "UNH": "UnitedHealth Group",
+        "HD": "Home Depot",
+        "BAC": "Bank of America",
+        "XOM": "Exxon Mobil",
+        "ORCL": "Oracle Corporation",
+        "KO": "Coca-Cola Company",
+        "PEP": "PepsiCo Inc.",
+        "COST": "Costco Wholesale",
+        "NFLX": "Netflix Inc.",
+        "DIS": "Walt Disney Company",
+        "INTC": "Intel Corporation",
+        "AMD": "Advanced Micro Devices",
+        "NKE": "Nike Inc.",
+        "PYPL": "PayPal Holdings",
+        "ADBE": "Adobe Inc.",
+        "CRM": "Salesforce Inc."
+    },
+    "Criptos": {
+        "BTC-USD": "Bitcoin",
+        "ETH-USD": "Ethereum",
+        "BNB-USD": "Binance Coin",
+        "XRP-USD": "Ripple",
+        "ADA-USD": "Cardano",
+        "DOGE-USD": "Dogecoin",
+        "SOL-USD": "Solana",
+        "DOT-USD": "Polkadot",
+        "MATIC-USD": "Polygon",
+        "AVAX-USD": "Avalanche",
+        "LINK-USD": "Chainlink",
+        "UNI-USD": "Uniswap"
+    },
+    "Forex": {
+        "EURUSD=X": "Euro / US Dollar",
+        "GBPUSD=X": "British Pound / US Dollar",
+        "USDJPY=X": "US Dollar / Japanese Yen",
+        "AUDUSD=X": "Australian Dollar / US Dollar",
+        "USDCAD=X": "US Dollar / Canadian Dollar",
+        "USDCHF=X": "US Dollar / Swiss Franc",
+        "NZDUSD=X": "New Zealand Dollar / US Dollar",
+        "EURGBP=X": "Euro / British Pound",
+        "EURJPY=X": "Euro / Japanese Yen"
+    },
+    "Índices": {
+        "^GSPC": "S&P 500",
+        "^DJI": "Dow Jones Industrial Average",
+        "^IXIC": "NASDAQ Composite",
+        "^RUT": "Russell 2000",
+        "^VIX": "CBOE Volatility Index",
+        "^FTSE": "FTSE 100 (UK)",
+        "^GDAXI": "DAX (Germany)",
+        "^N225": "Nikkei 225 (Japan)",
+        "^HSI": "Hang Seng (Hong Kong)"
+    }
+}
 
 tipo_activo = st.sidebar.selectbox("Tipo de Activo", ["Acciones", "Criptos", "Forex", "Índices"])
-ticker_map = {"Acciones": "AAPL", "Criptos": "BTC-USD", "Forex": "EURUSD=X", "Índices": "^GSPC"}
-ticker_user = st.sidebar.text_input("Ticker", ticker_map[tipo_activo])
+
+# Crear lista de opciones con formato "TICKER - Nombre"
+ticker_options = [f"{ticker} - {nombre}" for ticker, nombre in TICKERS_DB[tipo_activo].items()]
+
+# Selectbox con búsqueda
+ticker_seleccionado = st.sidebar.selectbox(
+    "Buscar Ticker",
+    options=ticker_options,
+    index=0,
+    help="Empieza a escribir para buscar"
+)
+
+# Extraer solo el símbolo del ticker
+ticker_user = ticker_seleccionado.split(" - ")[0]
+
+# Opción para escribir ticker personalizado
+usar_personalizado = st.sidebar.checkbox("✏️ Escribir ticker manualmente")
+if usar_personalizado:
+    ticker_user = st.sidebar.text_input("Ticker personalizado", value=ticker_user).upper()
 
 col_f1, col_f2 = st.sidebar.columns(2)
 with col_f1:
@@ -78,12 +215,39 @@ seccion = st.sidebar.radio("Navegación", ["📈 Análisis de Mercado", "📊 Ec
 # --- 4. CARGA DE DATOS ---
 @st.cache_data
 def get_data(ticker, start, end, freq):
-    df = yf.download([ticker, "SPY"], start=start, end=end)['Close']
-    return df.resample(m_resample[freq]).last().dropna()
+    try:
+        # Descargar datos sin mostrar progreso
+        df = yf.download([ticker, "SPY"], start=start, end=end, progress=False)
+        
+        # Si descargó múltiples tickers, extraer Close
+        if 'Close' in df.columns:
+            df_close = df['Close']
+        else:
+            df_close = df
+        
+        # Verificar que ambos tickers existan
+        if ticker not in df_close.columns or "SPY" not in df_close.columns:
+            raise ValueError(f"No se pudieron descargar datos para {ticker} o SPY")
+        
+        # Resamplear
+        df_resampled = df_close.resample(m_resample[freq]).last().dropna()
+        return df_resampled
+    except Exception as e:
+        raise Exception(f"Error descargando datos: {str(e)}")
 
 # --- 5. LÓGICA DE CÁLCULO Y VISUALIZACIÓN ---
 try:
     data = get_data(ticker_user, f_inicio, f_fin, f_label)
+    
+    # Verificar que tenemos las columnas necesarias
+    if ticker_user not in data.columns:
+        st.error(f"❌ No se encontraron datos para {ticker_user}. Verifica que el ticker sea correcto.")
+        st.stop()
+    
+    if "SPY" not in data.columns:
+        st.error("❌ No se pudieron descargar datos de SPY para comparación.")
+        st.stop()
+    
     asset_p = data[ticker_user]
     spy_p = data["SPY"]
     
@@ -95,12 +259,19 @@ try:
     st.title(f"Plataforma de Análisis: {ticker_user}")
 
     if seccion == "📈 Análisis de Mercado":
+        # Calcular Beta para la métrica
+        X_beta = sm.add_constant(ret_spy)
+        modelo_beta = sm.OLS(ret_asset, X_beta).fit()
+        beta_valor = modelo_beta.params[1]
+        
         # Métricas
         rend_total = (asset_p.iloc[-1] / asset_p.iloc[0]) - 1
-        c1, c2, c3 = st.columns(3)
+        c1, c2, c3, c4 = st.columns(4)
         c1.metric("Rendimiento Período", f"{rend_total:.2%}")
         c2.metric("Precio Cierre", f"{asset_p.iloc[-1]:.2f}")
         c3.metric("Volatilidad (Std)", f"{ret_asset.std():.4f}")
+        c4.metric("Beta vs S&P 500", f"{beta_valor:.4f}", 
+                 help="β > 1: Más volátil que el mercado | β < 1: Menos volátil | β < 0: Correlación inversa")
 
         # Gráficos
         tab1, tab2 = st.tabs(["Precios y Retornos", "Distribución Estadística"])
@@ -112,12 +283,16 @@ try:
 
     elif seccion == "📊 Econometría":
         st.subheader("Modelos de Regresión y Estacionariedad")
+        
+        # Estimar modelo OLS
+        X = sm.add_constant(df_ret["SPY"])
+        res_ols = sm.OLS(df_ret[ticker_user], X).fit()
+        
+        # Mostrar resultados del modelo
         col_ols, col_adf = st.columns([2, 1])
         
         with col_ols:
             st.markdown("**Regresión vs S&P 500 (Cálculo del Beta)**")
-            X = sm.add_constant(df_ret["SPY"])
-            res_ols = sm.OLS(df_ret[ticker_user], X).fit()
             st.text(res_ols.summary())
         
         with col_adf:
@@ -125,9 +300,150 @@ try:
             p_val = adfuller(asset_p)[1]
             st.metric("p-value ADF", f"{p_val:.4f}")
             if p_val < 0.05:
-                st.success("Serie Estacionaria")
+                st.success("✅ Serie Estacionaria")
             else:
-                st.warning("Serie No Estacionaria")
+                st.warning("⚠️ Serie No Estacionaria")
+        
+        st.markdown("---")
+        
+        # TESTS DE SUPUESTOS DEL MODELO LINEAL
+        st.subheader("🔍 Verificación de Supuestos del Modelo Lineal")
+        
+        # Calcular residuos y valores ajustados
+        residuos = res_ols.resid
+        valores_ajustados = res_ols.fittedvalues
+        residuos_estandarizados = (residuos - residuos.mean()) / residuos.std()
+        
+        # Crear tabs para cada supuesto
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "1️⃣ Linealidad", 
+            "2️⃣ Homocedasticidad", 
+            "3️⃣ Normalidad", 
+            "4️⃣ Independencia"
+        ])
+        
+        with tab1:
+            st.markdown("### Supuesto 1: Linealidad de la relación")
+            fig_lin = px.scatter(
+                x=valores_ajustados, 
+                y=residuos,
+                title="Residuos vs Valores Ajustados",
+                labels={"x": "Valores Ajustados", "y": "Residuos"}
+            )
+            fig_lin.add_hline(y=0, line_dash="dash", line_color="red")
+            st.plotly_chart(fig_lin, use_container_width=True)
+            
+            # Interpretación
+            patron_detectado = abs(residuos.corr(valores_ajustados)) > 0.3
+            if patron_detectado:
+                st.warning("⚠️ **Interpretación**: Se detecta un patrón en los residuos, lo que sugiere que la relación podría no ser completamente lineal. Considera transformaciones de variables o modelos no lineales.")
+            else:
+                st.success("✅ **Interpretación**: Los residuos se distribuyen aleatoriamente alrededor de cero sin patrones evidentes, indicando que el supuesto de linealidad se cumple razonablemente.")
+        
+        with tab2:
+            st.markdown("### Supuesto 2: Homocedasticidad (Varianza Constante)")
+            
+            # Gráfico Scale-Location
+            fig_homo = px.scatter(
+                x=valores_ajustados, 
+                y=np.sqrt(np.abs(residuos_estandarizados)),
+                title="Scale-Location Plot",
+                labels={"x": "Valores Ajustados", "y": "√|Residuos Estandarizados|"}
+            )
+            st.plotly_chart(fig_homo, use_container_width=True)
+            
+            # Test de Breusch-Pagan
+            from statsmodels.stats.diagnostic import het_breuschpagan
+            bp_test = het_breuschpagan(residuos, X)
+            bp_pval = bp_test[1]
+            
+            st.metric("Test de Breusch-Pagan (p-value)", f"{bp_pval:.4f}")
+            
+            if bp_pval < 0.05:
+                st.warning("⚠️ **Interpretación**: Se detecta heterocedasticidad (varianza no constante). Los errores estándar podrían estar sesgados. Considera usar errores robustos (HC3) o transformaciones logarítmicas.")
+            else:
+                st.success("✅ **Interpretación**: No hay evidencia significativa de heterocedasticidad. La varianza de los residuos es relativamente constante, cumpliendo el supuesto.")
+        
+        with tab3:
+            st.markdown("### Supuesto 3: Normalidad de los Residuos")
+            
+            col_qq, col_hist = st.columns(2)
+            
+            with col_qq:
+                # Q-Q Plot
+                from scipy import stats
+                (osm, osr), (slope, intercept, r) = stats.probplot(residuos, dist="norm")
+                fig_qq = px.scatter(
+                    x=osm, 
+                    y=osr,
+                    title="Q-Q Plot"
+                )
+                fig_qq.add_scatter(
+                    x=osm, 
+                    y=slope * osm + intercept,
+                    mode='lines',
+                    line=dict(color='red', dash='dash'),
+                    name='Línea teórica'
+                )
+                fig_qq.update_layout(
+                    xaxis_title="Cuantiles Teóricos",
+                    yaxis_title="Cuantiles Observados"
+                )
+                st.plotly_chart(fig_qq, use_container_width=True)
+            
+            with col_hist:
+                # Histograma de residuos
+                fig_hist = px.histogram(
+                    residuos,
+                    title="Distribución de Residuos",
+                    marginal="box"
+                )
+                st.plotly_chart(fig_hist, use_container_width=True)
+            
+            # Test de Jarque-Bera
+            from statsmodels.stats.stattools import jarque_bera
+            jb_test = jarque_bera(residuos)
+            jb_pval = jb_test[1]
+            
+            st.metric("Test de Jarque-Bera (p-value)", f"{jb_pval:.4f}")
+            
+            if jb_pval < 0.05:
+                st.warning("⚠️ **Interpretación**: Los residuos no siguen una distribución normal. Esto puede afectar los intervalos de confianza y tests de hipótesis. Con muestras grandes (n>30), el Teorema del Límite Central mitiga este problema.")
+            else:
+                st.success("✅ **Interpretación**: Los residuos se distribuyen aproximadamente de forma normal, cumpliendo el supuesto. Los tests de hipótesis son confiables.")
+        
+        with tab4:
+            st.markdown("### Supuesto 4: Independencia de Residuos")
+            
+            # Gráfico de residuos en el tiempo
+            fig_time = px.line(
+                x=residuos.index,
+                y=residuos,
+                title="Residuos a lo largo del tiempo"
+            )
+            fig_time.add_hline(y=0, line_dash="dash", line_color="red")
+            fig_time.update_layout(
+                xaxis_title="Fecha",
+                yaxis_title="Residuos"
+            )
+            st.plotly_chart(fig_time, use_container_width=True)
+            
+            # Test de Durbin-Watson
+            from statsmodels.stats.stattools import durbin_watson
+            dw_stat = durbin_watson(residuos)
+            
+            st.metric("Estadístico Durbin-Watson", f"{dw_stat:.4f}")
+            
+            # Interpretación del DW
+            if dw_stat < 1.5:
+                st.warning("⚠️ **Interpretación**: Existe autocorrelación positiva en los residuos. Los errores de periodos consecutivos están correlacionados, violando el supuesto de independencia. Considera modelos ARIMA o incluir rezagos.")
+            elif dw_stat > 2.5:
+                st.warning("⚠️ **Interpretación**: Existe autocorrelación negativa en los residuos. Poco común en series financieras. Revisa la especificación del modelo.")
+            else:
+                st.success("✅ **Interpretación**: No hay evidencia fuerte de autocorrelación (DW ≈ 2). Los residuos son aproximadamente independientes, cumpliendo el supuesto.")
+            
+            # Información adicional
+            st.info("💡 **Nota**: El estadístico Durbin-Watson varía entre 0 y 4. Un valor cercano a 2 indica ausencia de autocorrelación.")
 
     elif seccion == "📑 Balances Contables":
         st.subheader("Información Financiera")
