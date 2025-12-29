@@ -1,4 +1,59 @@
-import streamlit as st
+# Botón de modo oscuro/claro
+modo_oscuro = st.sidebar.toggle("🌙 Modo Oscuro", value=False)
+
+if modo_oscuro:
+    st.markdown("""
+        <style>
+        /* Fondo general y textos */
+        .stApp { 
+            background-color: #0e1117 !important; 
+            color: #fafafa !important; 
+        }
+        
+        /* Sidebar */
+        [data-testid="stSidebar"] { 
+            background-color: #1a1d29 !important; 
+        }
+        [data-testid="stSidebar"] .stMarkdown,
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] p {
+            color: #fafafa !important;
+        }
+        
+        /* Botones del sidebar */
+        [data-testid="stSidebar"] button {
+            background-color: #ff6b35 !important;
+            color: #0e1117 !important;
+            border: none !important;
+            font-weight: 600 !important;
+        }
+        [data-testid="stSidebar"] button:hover {
+            background-color: #ff8c42 !important;
+            color: #0e1117 !important;
+        }
+        
+        /* Selectbox y inputs del sidebar */
+        [data-testid="stSidebar"] [data-baseweb="select"],
+        [data-testid="stSidebar"] input {
+            background-color: #2d3142 !important;
+            color: #fafafa !important;
+            border-color: #ff6b35 !important;
+        }
+        
+        /* Tarjetas de métricas */
+        [data-testid="stMetric"] { 
+            background-color: #1a1d29 !important; 
+            border: 1px solid #2d3142 !important;
+            padding: 15px !important;
+            border-radius: 10px !important;
+        }
+        [data-testid="stMetricLabel"] {
+            color: #fafafa !important;
+            font-size: 14px !important;
+        }
+        [data-testid="stMetricValue"] {
+            color: #ff6b35 !important;
+            import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
