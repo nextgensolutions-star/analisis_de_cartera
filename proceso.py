@@ -47,13 +47,13 @@ st.markdown("""
 
 #if "messages" not in st.session_state:
 #    st.session_state.messages = []
-
+#
 #model_ia, status_ia, models_list = setup_ai()
-
+#
 # 3. BARRA LATERAL: CONFIGURACIÓN
-#st.sidebar.header("📊 Parámetros de Análisis")
+st.sidebar.header("📊 Parámetros de Análisis")
 #st.sidebar.info(status_ia)
-
+#
 # Botón de modo oscuro
 modo_oscuro = st.sidebar.toggle("🌙 Modo Oscuro", value=False)
 
