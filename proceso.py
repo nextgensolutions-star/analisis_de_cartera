@@ -51,8 +51,8 @@ st.markdown("""
 #model_ia, status_ia, models_list = setup_ai()
 
 # 3. BARRA LATERAL: CONFIGURACIÓN
-st.sidebar.header("📊 Parámetros de Análisis")
-st.sidebar.info(status_ia)
+#st.sidebar.header("📊 Parámetros de Análisis")
+#st.sidebar.info(status_ia)
 
 # Botón de modo oscuro
 modo_oscuro = st.sidebar.toggle("🌙 Modo Oscuro", value=False)
