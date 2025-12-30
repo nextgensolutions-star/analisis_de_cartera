@@ -19,36 +19,36 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 2. INICIALIZACIÓN DE IA
-def setup_ai():
-    if "GEMINI_API_KEY" not in st.secrets:
-        return None, "Clave no configurada en Secrets.", []
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        target_model = ""
-        for m_name in ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']:
-            if m_name in available_models:
-                target_model = m_name
-                break
-        
-        if not target_model and available_models:
-            target_model = available_models[0]
-            
-        if target_model:
-            model = genai.GenerativeModel(
-                model_name=target_model,
-                system_instruction="Eres un experto en econometría aplicada. Explica resultados de OLS y ADF de forma académica."
-            )
-            return model, f"✅ IA Activa: {target_model.split('/')[-1]}", available_models
-        return None, f"❌ Modelos disponibles: {len(available_models)}, pero ninguno compatible.", available_models
-    except Exception as e:
-        return None, f"⚠️ Error IA: {str(e)}", []
+#def setup_ai():
+#    if "GEMINI_API_KEY" not in st.secrets:
+#        return None, "Clave no configurada en Secrets.", []
+#    try:
+#        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+#        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+#        
+#        target_model = ""
+#        for m_name in ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']:
+#            if m_name in available_models:
+#                target_model = m_name
+#                break
+#        
+#        if not target_model and available_models:
+#            target_model = available_models[0]
+#           
+#        if target_model:
+#            model = genai.GenerativeModel(
+#                model_name=target_model,
+#                system_instruction="Eres un experto en econometría aplicada. Explica resultados de OLS y ADF de forma académica."
+#            )
+#            return model, f"✅ IA Activa: {target_model.split('/')[-1]}", available_models
+#        return None, f"❌ Modelos disponibles: {len(available_models)}, pero ninguno compatible.", available_models
+#    except Exception as e:
+#        return None, f"⚠️ Error IA: {str(e)}", []
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+#if "messages" not in st.session_state:
+#    st.session_state.messages = []
 
-model_ia, status_ia, models_list = setup_ai()
+#model_ia, status_ia, models_list = setup_ai()
 
 # 3. BARRA LATERAL: CONFIGURACIÓN
 st.sidebar.header("📊 Parámetros de Análisis")
