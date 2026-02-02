@@ -1,0 +1,28 @@
+name: Actualizar Cartera IOL
+
+on:
+  schedule:
+    - cron: '*/30 * * * *' # Cada 30 minutos
+  workflow_dispatch:      # Permite ejecutarlo manualmente
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instalar librerias
+        run: pip install -r requirements.txt
+
+      - name: Ejecutar Motor de Datos
+        env:
+          IOL_USERNAME: ${{ secrets.IOL_USERNAME }}
+          IOL_PASSWORD: ${{ secrets.IOL_PASSWORD }}
+          GOOGLE_SHEETS_ID: ${{ secrets.GOOGLE_SHEETS_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+        run: python script_iol.py
