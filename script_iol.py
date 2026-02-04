@@ -54,6 +54,7 @@ def main():
     # 2. Login en IOL
     iol = IOL_Manager()
     iol.login()
+    print("✓ Login en IOL exitoso")
     
     # 3. Lógica de APPEND de Operaciones
     sheet_ops = spreadsheet.worksheet("operaciones")
@@ -61,6 +62,8 @@ def main():
     ids_guardados = df_existente['id_operacion'].astype(str).tolist() if not df_existente.empty else []
 
     nuevas_ops = iol.get_operaciones_recientes()
+    print(f"Operaciones recientes obtenidas de IOL: {len(nuevas_ops)}")
+    
     rows_to_append = []
     
     for op in nuevas_ops:
@@ -84,23 +87,42 @@ def main():
     
     if rows_to_append:
         sheet_ops.append_rows(rows_to_append)
-        print(f"Se agregaron {len(rows_to_append)} operaciones nuevas.")
+        print(f"✓ Se agregaron {len(rows_to_append)} operaciones nuevas.")
+    else:
+        print("No hay operaciones nuevas para agregar.")
 
     # 4. Actualización de COTIZACIONES
     # Leemos todos los símbolos que tenemos en operaciones para actualizar sus precios
     df_total_ops = pd.DataFrame(sheet_ops.get_all_records())
+    print(f"Total de operaciones en el sheet: {len(df_total_ops)}")
+    
+    if df_total_ops.empty:
+        print("⚠️ ADVERTENCIA: La hoja 'operaciones' está vacía. No hay símbolos para actualizar.")
+        return
+    
     simbolos = df_total_ops[['simbolo', 'mercado']].drop_duplicates()
+    print(f"Símbolos únicos a actualizar: {len(simbolos)}")
+    print(f"Símbolos: {simbolos['simbolo'].tolist()}")
     
     cotizaciones_update = []
     for _, row in simbolos.iterrows():
+        print(f"Consultando precio de {row['simbolo']} en {row['mercado']}...")
         coti = iol.get_precio(row['simbolo'], row['mercado'])
         if coti:
+            print(f"✓ {row['simbolo']}: ${coti.get('ultimoPrecio')}")
             cotizaciones_update.append([row['simbolo'], coti['ultimoPrecio'], coti['fechaHora']])
+        else:
+            print(f"✗ {row['simbolo']}: No se obtuvo cotización")
     
-    sheet_coti = spreadsheet.worksheet("cotizaciones")
-    sheet_coti.clear()
-    sheet_coti.update([['simbolo', 'ultimoPrecio', 'fecha_cotizacion']] + cotizaciones_update)
-    print("Precios actualizados.")
+    print(f"Total de cotizaciones obtenidas: {len(cotizaciones_update)}")
+    
+    if cotizaciones_update:
+        sheet_coti = spreadsheet.worksheet("cotizaciones")
+        sheet_coti.clear()
+        sheet_coti.update([['simbolo', 'ultimoPrecio', 'fecha_cotizacion']] + cotizaciones_update)
+        print(f"✓ Precios actualizados en el sheet: {len(cotizaciones_update)} símbolos")
+    else:
+        print("⚠️ No se actualizó ningún precio (cotizaciones_update vacío)")
 
 if __name__ == "__main__":
     main()
