@@ -3,6 +3,7 @@ import json
 import requests
 import gspread
 import pandas as pd
+import yfinance as yf
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime, timedelta
 
@@ -33,14 +34,51 @@ class IOL_Manager:
         movimientos = response.json().get('movimientos', [])
         return movimientos
 
-    def get_precio(self, simbolo, mercado="BCBA"):
-        url = f"{self.url_base}/api/v1/Titulos/{mercado}/Instrumentos/{simbolo}/Cotizacion"
-        headers = {'Authorization': f'Bearer {self.access_token}'}
+    def get_precio(self, simbolo):
+        """Busca el precio del símbolo en múltiples mercados automáticamente"""
+        mercados = ["BCBA", "NYSE", "NASDAQ", "ROFX"]  # Mercados soportados por IOL
+        
+        for mercado in mercados:
+            url = f"{self.url_base}/api/v1/Titulos/{mercado}/Instrumentos/{simbolo}/Cotizacion"
+            headers = {'Authorization': f'Bearer {self.access_token}'}
+            try:
+                r = requests.get(url, headers=headers, timeout=5)
+                if r.status_code == 200:
+                    data = r.json()
+                    if data and 'ultimoPrecio' in data:
+                        return data
+            except:
+                continue
+        
+        return None
+    
+    def get_precio_yfinance(self, simbolo):
+        """Obtiene precio usando yfinance (para criptos y otros activos no disponibles en IOL)"""
+        # Mapeo de símbolos comunes a formato yfinance
+        simbolo_map = {
+            'BTC': 'BTC-USD',
+            'ETH': 'ETH-USD',
+            'USDT': 'USDT-USD',
+            'ADA': 'ADA-USD',
+            'SOL': 'SOL-USD',
+        }
+        
+        # Si el símbolo está en el mapeo, usar esa versión
+        yf_simbolo = simbolo_map.get(simbolo, simbolo)
+        
         try:
-            r = requests.get(url, headers=headers)
-            if r.status_code == 200:
-                return r.json()
-        except: return None
+            ticker = yf.Ticker(yf_simbolo)
+            info = ticker.history(period='1d')
+            if not info.empty:
+                precio = info['Close'].iloc[-1]
+                fecha = info.index[-1].strftime('%Y-%m-%dT%H:%M:%S')
+                return {
+                    'ultimoPrecio': precio,
+                    'fechaHora': fecha
+                }
+        except Exception as e:
+            print(f"Error con yfinance para {simbolo}: {e}")
+        
         return None
 
 def main():
@@ -100,21 +138,35 @@ def main():
         print("⚠️ ADVERTENCIA: La hoja 'operaciones' está vacía. No hay símbolos para actualizar.")
         return
     
-    simbolos = df_total_ops[['simbolo', 'mercado']].drop_duplicates()
+    # Ya no necesitamos la columna mercado
+    simbolos = df_total_ops['simbolo'].drop_duplicates()
     print(f"Símbolos únicos a actualizar: {len(simbolos)}")
-    print(f"Símbolos: {simbolos['simbolo'].tolist()}")
+    print(f"Símbolos: {simbolos.tolist()}")
     
     cotizaciones_update = []
-    for _, row in simbolos.iterrows():
-        print(f"Consultando precio de {row['simbolo']} en {row['mercado']}...")
-        coti = iol.get_precio(row['simbolo'], row['mercado'])
-        if coti:
-            print(f"✓ {row['simbolo']}: ${coti.get('ultimoPrecio')}")
-            cotizaciones_update.append([row['simbolo'], coti['ultimoPrecio'], coti['fechaHora']])
-        else:
-            print(f"✗ {row['simbolo']}: No se obtuvo cotización")
+    simbolos_no_encontrados = []
     
-    print(f"Total de cotizaciones obtenidas: {len(cotizaciones_update)}")
+    for simbolo in simbolos:
+        print(f"Consultando precio de {simbolo}...")
+        
+        # Primero intentar con IOL
+        coti = iol.get_precio(simbolo)
+        
+        # Si no se encuentra en IOL, intentar con yfinance
+        if not coti:
+            print(f"  No encontrado en IOL, intentando con yfinance...")
+            coti = iol.get_precio_yfinance(simbolo)
+        
+        if coti:
+            print(f"✓ {simbolo}: ${coti.get('ultimoPrecio')}")
+            cotizaciones_update.append([simbolo, coti['ultimoPrecio'], coti['fechaHora']])
+        else:
+            print(f"✗ {simbolo}: No se obtuvo cotización (ignorado)")
+            simbolos_no_encontrados.append(simbolo)
+    
+    print(f"\nTotal de cotizaciones obtenidas: {len(cotizaciones_update)}")
+    if simbolos_no_encontrados:
+        print(f"Símbolos no encontrados (ignorados): {simbolos_no_encontrados}")
     
     if cotizaciones_update:
         sheet_coti = spreadsheet.worksheet("cotizaciones")
