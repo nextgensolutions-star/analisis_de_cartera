@@ -2,5 +2,6 @@ requests
 pandas
 gspread
 oauth2client
-streamlit
 python-dotenv
+streamlit==1.25.0
+altair==4.2.2
