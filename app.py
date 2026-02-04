@@ -3,6 +3,8 @@ import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
+import plotly.express as px
+import plotly.graph_objects as go
 
 # 1. Configuración de la página
 st.set_page_config(page_title="Mi Cartera - Bolsa Argentina", layout="wide", page_icon="₱")
@@ -92,6 +94,7 @@ def load_data():
         df_coti['ultimoPrecio'] = pd.to_numeric(df_coti['ultimoPrecio'], errors='coerce').fillna(0)
     
     if 'beta' in df_maestra.columns:
+        # Convertir beta, y si hay valores vacíos o inválidos, usar 1 (neutral)
         df_maestra['beta'] = pd.to_numeric(df_maestra['beta'], errors='coerce').fillna(1)
     
     return df_ops, df_coti, df_maestra
@@ -111,10 +114,16 @@ try:
     df_final['valorizado'] = df_final['cantidad'] * df_final['ultimoPrecio']
     patrimonio_total = df_final['valorizado'].sum()
     
-    # Beta Ponderado
-    if patrimonio_total > 0:
-        beta_p = (df_final['beta'] * (df_final['valorizado'] / patrimonio_total)).sum()
-    else: beta_p = 0
+    # Beta Ponderado (solo para activos con beta válido)
+    df_con_beta = df_final[df_final['beta'].notna() & (df_final['beta'] != '')].copy()
+    if not df_con_beta.empty and patrimonio_total > 0:
+        patrimonio_con_beta = df_con_beta['valorizado'].sum()
+        if patrimonio_con_beta > 0:
+            beta_p = (df_con_beta['beta'] * (df_con_beta['valorizado'] / patrimonio_con_beta)).sum()
+        else:
+            beta_p = 0
+    else:
+        beta_p = 0
 
     # --- RENDERIZADO DEL FRONTEND ---
     
@@ -161,15 +170,57 @@ try:
             <div class="stat-value">{len(df_final)}</div>
         </div>""", unsafe_allow_html=True)
 
-    # Gráficos (Usando la estética de Streamlit que combina con tu azul oscuro)
+    # Gráficos (Usando Plotly con tema oscuro)
     col_left, col_right = st.columns(2)
+    
     with col_left:
         st.write("### Distribución por Sector")
-        st.pie_chart(df_final.groupby('sector')['valorizado'].sum())
+        sector_data = df_final.groupby('sector')['valorizado'].sum().reset_index()
+        if not sector_data.empty:
+            fig_pie = px.pie(
+                sector_data, 
+                values='valorizado', 
+                names='sector',
+                hole=0.4,
+                color_discrete_sequence=px.colors.sequential.Teal
+            )
+            fig_pie.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font_color='#ffffff',
+                showlegend=True
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
+        else:
+            st.info("No hay datos para mostrar")
     
     with col_right:
         st.write("### Concentración por Activo")
-        st.bar_chart(df_final.set_index('simbolo')['valorizado'])
+        activo_data = df_final.set_index('simbolo')['valorizado'].sort_values(ascending=True)
+        if not activo_data.empty:
+            fig_bar = go.Figure(data=[
+                go.Bar(
+                    x=activo_data.values,
+                    y=activo_data.index,
+                    orientation='h',
+                    marker=dict(
+                        color=activo_data.values,
+                        colorscale='Teal',
+                        showscale=False
+                    )
+                )
+            ])
+            fig_bar.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font_color='#ffffff',
+                xaxis=dict(gridcolor='#2d3748'),
+                yaxis=dict(gridcolor='#2d3748'),
+                height=400
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.info("No hay datos para mostrar")
 
     # Tabla Detallada
     st.write("### Detalle de Posiciones Abiertas")
