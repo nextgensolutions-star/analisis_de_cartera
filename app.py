@@ -56,8 +56,8 @@ st.markdown(f"""
 
 # --- LÓGICA DE DATOS ---
 def load_data():
-    # Cargar credenciales desde secrets
-    creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS_JSON"])
+    # Cargar credenciales desde secrets (formato TOML de Streamlit)
+    creds_dict = dict(st.secrets["google_creds"])
     
     # Autenticar con Google
     scope = ['https://spreadsheets.google.com/feeds',
