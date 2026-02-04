@@ -80,6 +80,40 @@ class IOL_Manager:
             print(f"Error con yfinance para {simbolo}: {e}")
         
         return None
+    
+    def get_info_fundamental(self, simbolo):
+        """Obtiene información fundamental del activo (sector, tipo, beta)"""
+        # Mapeo para criptos (beta=1 = neutral, se mueve igual que el mercado)
+        crypto_map = {
+            'BTC': {'sector': 'Cryptocurrency', 'instrumento': 'Crypto', 'beta': 1},
+            'ETH': {'sector': 'Cryptocurrency', 'instrumento': 'Crypto', 'beta': 1},
+            'USDT': {'sector': 'Stablecoin', 'instrumento': 'Crypto', 'beta': 0},  # Stablecoin = sin volatilidad
+            'ADA': {'sector': 'Cryptocurrency', 'instrumento': 'Crypto', 'beta': 1},
+            'SOL': {'sector': 'Cryptocurrency', 'instrumento': 'Crypto', 'beta': 1},
+        }
+        
+        # Si es una crypto conocida, devolver info hardcoded
+        if simbolo in crypto_map:
+            return crypto_map[simbolo]
+        
+        # Para acciones, intentar obtener de yfinance
+        yf_simbolo = simbolo
+        try:
+            ticker = yf.Ticker(yf_simbolo)
+            info = ticker.info
+            
+            return {
+                'sector': info.get('sector', 'N/A'),
+                'instrumento': info.get('quoteType', 'Stock'),  # EQUITY, ETF, etc.
+                'beta': info.get('beta', 1)  # Default 1 si no hay beta disponible
+            }
+        except Exception as e:
+            print(f"No se pudo obtener info fundamental para {simbolo}: {e}")
+            return {
+                'sector': 'N/A',
+                'instrumento': 'N/A',
+                'beta': 1  # Default 1 para evitar problemas en cálculos
+            }
 
 def main():
     # 1. Conexión a Google Sheets
@@ -144,6 +178,7 @@ def main():
     print(f"Símbolos: {simbolos.tolist()}")
     
     cotizaciones_update = []
+    maestra_update = []
     simbolos_no_encontrados = []
     
     for simbolo in simbolos:
@@ -160,6 +195,15 @@ def main():
         if coti:
             print(f"✓ {simbolo}: ${coti.get('ultimoPrecio')}")
             cotizaciones_update.append([simbolo, coti['ultimoPrecio'], coti['fechaHora']])
+            
+            # Obtener información fundamental para la hoja maestra
+            info_fund = iol.get_info_fundamental(simbolo)
+            maestra_update.append([
+                simbolo,
+                info_fund['sector'],
+                info_fund['instrumento'],
+                info_fund['beta']  # Siempre será un número ahora
+            ])
         else:
             print(f"✗ {simbolo}: No se obtuvo cotización (ignorado)")
             simbolos_no_encontrados.append(simbolo)
@@ -168,6 +212,7 @@ def main():
     if simbolos_no_encontrados:
         print(f"Símbolos no encontrados (ignorados): {simbolos_no_encontrados}")
     
+    # Actualizar hoja de cotizaciones
     if cotizaciones_update:
         sheet_coti = spreadsheet.worksheet("cotizaciones")
         sheet_coti.clear()
@@ -175,6 +220,13 @@ def main():
         print(f"✓ Precios actualizados en el sheet: {len(cotizaciones_update)} símbolos")
     else:
         print("⚠️ No se actualizó ningún precio (cotizaciones_update vacío)")
+    
+    # Actualizar hoja maestra
+    if maestra_update:
+        sheet_maestra = spreadsheet.worksheet("maestra")
+        sheet_maestra.clear()
+        sheet_maestra.update([['simbolo', 'sector', 'instrumento', 'beta']] + maestra_update)
+        print(f"✓ Hoja maestra actualizada: {len(maestra_update)} símbolos")
 
 if __name__ == "__main__":
     main()
