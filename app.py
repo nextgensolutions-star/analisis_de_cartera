@@ -56,8 +56,8 @@ st.markdown(f"""
 
 # --- LÓGICA DE DATOS ---
 def load_data():
-    # Cargar credenciales desde secrets (formato TOML de Streamlit)
-    creds_dict = dict(st.secrets["google_creds"])
+    # Cargar credenciales desde secrets (mismo formato que GitHub Actions)
+    creds_dict = json.loads(st.secrets["GOOGLE_CREDS"])
     
     # Autenticar con Google
     scope = ['https://spreadsheets.google.com/feeds',
@@ -74,13 +74,25 @@ def load_data():
     df_coti = pd.DataFrame(sheet.worksheet("cotizaciones").get_all_records())
     df_maestra = pd.DataFrame(sheet.worksheet("maestra").get_all_records())
     
+    # Verificar si las hojas tienen datos
+    if df_ops.empty:
+        raise ValueError("La hoja 'operaciones' está vacía. Agrega datos.")
+    if df_coti.empty:
+        raise ValueError("La hoja 'cotizaciones' está vacía. Agrega datos.")
+    if df_maestra.empty:
+        raise ValueError("La hoja 'maestra' está vacía. Agrega datos.")
+    
     # Convertir columnas numéricas (maneja celdas vacías, texto, etc.)
-    df_ops['cantidad'] = pd.to_numeric(df_ops['cantidad'], errors='coerce').fillna(0)
-    df_ops['precio_compra_venta'] = pd.to_numeric(df_ops['precio_compra_venta'], errors='coerce').fillna(0)
+    if 'cantidad' in df_ops.columns:
+        df_ops['cantidad'] = pd.to_numeric(df_ops['cantidad'], errors='coerce').fillna(0)
+    if 'precio_compra_venta' in df_ops.columns:
+        df_ops['precio_compra_venta'] = pd.to_numeric(df_ops['precio_compra_venta'], errors='coerce').fillna(0)
     
-    df_coti['ultimoPrecio'] = pd.to_numeric(df_coti['ultimoPrecio'], errors='coerce').fillna(0)
+    if 'ultimoPrecio' in df_coti.columns:
+        df_coti['ultimoPrecio'] = pd.to_numeric(df_coti['ultimoPrecio'], errors='coerce').fillna(0)
     
-    df_maestra['beta'] = pd.to_numeric(df_maestra['beta'], errors='coerce').fillna(1)
+    if 'beta' in df_maestra.columns:
+        df_maestra['beta'] = pd.to_numeric(df_maestra['beta'], errors='coerce').fillna(1)
     
     return df_ops, df_coti, df_maestra
 
