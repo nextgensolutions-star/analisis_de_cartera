@@ -1,5 +1,8 @@
 import streamlit as st
 import pandas as pd
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import json
 
 # 1. Configuración de la página
 st.set_page_config(page_title="Mi Cartera - Bolsa Argentina", layout="wide", page_icon="₱")
@@ -53,11 +56,32 @@ st.markdown(f"""
 
 # --- LÓGICA DE DATOS ---
 def load_data():
+    # Cargar credenciales desde secrets
+    creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS_JSON"])
+    
+    # Autenticar con Google
+    scope = ['https://spreadsheets.google.com/feeds',
+             'https://www.googleapis.com/auth/drive']
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
+    
+    # Abrir el sheet
     SHEET_ID = st.secrets["GOOGLE_SHEETS_ID"]
-    # Cargamos las 3 pestañas
-    df_ops = pd.read_csv(f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=operaciones")
-    df_coti = pd.read_csv(f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=cotizaciones")
-    df_maestra = pd.read_csv(f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=maestra")
+    sheet = client.open_by_key(SHEET_ID)
+    
+    # Cargar las 3 pestañas
+    df_ops = pd.DataFrame(sheet.worksheet("operaciones").get_all_records())
+    df_coti = pd.DataFrame(sheet.worksheet("cotizaciones").get_all_records())
+    df_maestra = pd.DataFrame(sheet.worksheet("maestra").get_all_records())
+    
+    # Convertir columnas numéricas (maneja celdas vacías, texto, etc.)
+    df_ops['cantidad'] = pd.to_numeric(df_ops['cantidad'], errors='coerce').fillna(0)
+    df_ops['precio_compra_venta'] = pd.to_numeric(df_ops['precio_compra_venta'], errors='coerce').fillna(0)
+    
+    df_coti['ultimoPrecio'] = pd.to_numeric(df_coti['ultimoPrecio'], errors='coerce').fillna(0)
+    
+    df_maestra['beta'] = pd.to_numeric(df_maestra['beta'], errors='coerce').fillna(1)
+    
     return df_ops, df_coti, df_maestra
 
 try:
