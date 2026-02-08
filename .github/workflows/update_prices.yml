@@ -1,0 +1,97 @@
+name: Actualizar Precios IOL
+
+on:
+  schedule:
+    # 13:00 Argentina (ART = UTC-3) → 16:00 UTC
+    - cron: '0 16 * * *'
+    # 18:00 Argentina (ART = UTC-3) → 21:00 UTC
+    - cron: '0 21 * * *'
+  
+  # Permite ejecutar manualmente desde GitHub
+  workflow_dispatch:
+
+jobs:
+  update-prices:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Instalar dependencias
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Crear archivo de credenciales de Google
+        run: |
+          echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credenciales_google.json
+      
+      - name: Test de conexión con IOL (con reintentos)
+        env:
+          IOL_USERNAME: ${{ secrets.IOL_USERNAME }}
+          IOL_PASSWORD: ${{ secrets.IOL_PASSWORD }}
+        run: |
+          echo "🧪 Probando conexión con IOL..."
+          
+          MAX_RETRIES=3
+          RETRY_DELAY=60  # segundos
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Intento $i de $MAX_RETRIES..."
+            
+            if python test_iol_connection.py; then
+              echo "✅ Test exitoso!"
+              exit 0
+            else
+              echo "❌ Test falló"
+              
+              if [ $i -lt $MAX_RETRIES ]; then
+                echo "⏳ Esperando ${RETRY_DELAY} segundos antes de reintentar..."
+                sleep $RETRY_DELAY
+              else
+                echo "❌ Se agotaron los intentos"
+                exit 1
+              fi
+            fi
+          done
+      
+      - name: Ejecutar actualización de precios (con reintentos)
+        env:
+          IOL_USERNAME: ${{ secrets.IOL_USERNAME }}
+          IOL_PASSWORD: ${{ secrets.IOL_PASSWORD }}
+          SPREADSHEET_NAME: ${{ secrets.SPREADSHEET_NAME }}
+        run: |
+          echo "🚀 Actualizando precios..."
+          
+          MAX_RETRIES=3
+          RETRY_DELAY=60  # segundos
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Intento $i de $MAX_RETRIES..."
+            
+            if python iol_precio_updater.py; then
+              echo "✅ Actualización exitosa!"
+              exit 0
+            else
+              echo "❌ Actualización falló"
+              
+              if [ $i -lt $MAX_RETRIES ]; then
+                echo "⏳ Esperando ${RETRY_DELAY} segundos antes de reintentar..."
+                sleep $RETRY_DELAY
+              else
+                echo "❌ Se agotaron los intentos"
+                exit 1
+              fi
+            fi
+          done
+      
+      - name: Limpiar credenciales
+        if: always()
+        run: |
+          rm -f credenciales_google.json
